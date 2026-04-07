@@ -1,0 +1,8 @@
+services:
+  - type: web
+    name: theblackmambaSOL
+    runtime: python
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn main_v2_4_bybit_adapter_v0:app --host 0.0.0.0 --port $PORT
+    plan: starter
+    region: frankfurt
