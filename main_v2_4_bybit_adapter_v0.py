@@ -790,10 +790,18 @@ class BybitDemoAdapterV0:
         if result.get("accepted") is True:
             return True
         code = result.get("retCode")
-        if code in (None, 0, "0"):
+        if code in (None, 0, "0", 110043, "110043"):
             return True
         msg = str(result.get("retMsg") or result.get("ret_msg") or "").lower()
         return "not modified" in msg and "leverage" in msg
+
+    @staticmethod
+    def _exception_is_leverage_noop(exc: Exception) -> bool:
+        msg = str(exc).lower()
+        return (
+            "110043" in msg
+            or ("not modified" in msg and "leverage" in msg)
+        )
 
     def _desired_leverage(self, tv_symbol: str, symbol: str) -> str:
         return self._normalized_leverage(self.config.leverage_for_symbol(tv_symbol))
@@ -810,7 +818,19 @@ class BybitDemoAdapterV0:
             "buyLeverage": desired_leverage,
             "sellLeverage": desired_leverage,
         }
-        result = self.gateway.set_leverage(params)
+        try:
+            result = self.gateway.set_leverage(params)
+        except Exception as exc:
+            if not self._exception_is_leverage_noop(exc):
+                raise
+            result = {
+                "accepted": True,
+                "retCode": 110043,
+                "retMsg": "leverage not modified",
+                "noop": True,
+                "source_error": str(exc),
+            }
+
         if not self._result_is_ok(result):
             raise RuntimeError(f"set_leverage rejected for {symbol}: {result}")
 
